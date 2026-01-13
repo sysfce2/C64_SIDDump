@@ -87,6 +87,7 @@ int main(int argc, char **argv)
   int usage = 0;
   int profiling = 0;
   int tempoindex = 0;
+  int detect8580 = 0;
   unsigned loadend;
   unsigned loadpos;
   unsigned loadsize;
@@ -98,6 +99,9 @@ int main(int argc, char **argv)
   char *sidname = 0;
   int c;
 
+  spacing[0] = 0;
+  spacing[1] = 0;
+  
   // Scan arguments
   for (c = 1; c < argc; c++)
   {
@@ -160,6 +164,10 @@ int main(int argc, char **argv)
         case 'Z':
         profiling = 1;
         break;
+
+        case '8':
+        detect8580 = 1;
+        break;
       }
     }
     else 
@@ -185,7 +193,8 @@ int main(int argc, char **argv)
            "-p<value> Pattern spacing, default 0 (none)\n"
            "-s        Display time in minutes:seconds:frame format\n"
            "-t<value> Playback time in seconds, default 60\n"
-           "-z        Include CPU cycles+rastertime (PAL)+rastertime, badline corrected\n");
+           "-z        Include CPU cycles+rastertime (PAL)+rastertime, badline corrected\n"
+           "-8        8580 detection hack\n");
     return 1;
   }
 
@@ -261,6 +270,11 @@ int main(int argc, char **argv)
   instr = 0;
   while (runcpu())
   {
+    if (detect8580)
+        mem[0xd41b] = 0x2;
+    else
+        mem[0xd41b] = 0x3;
+        
     // Allow SID model detection (including $d011 wait) to eventually terminate
     ++mem[0xd012];
     if (!mem[0xd012] || ((mem[0xd011] & 0x80) && mem[0xd012] >= 0x38))
@@ -451,7 +465,7 @@ int main(int argc, char **argv)
       // Mastervolume
       if ((frames == firstframe) || ((filt.type & 0xf) != (prevfilt.type & 0xf))) sprintf(&output[strlen(output)], "%01X ", filt.type & 0xf);
       else sprintf(&output[strlen(output)], ". ");
-      
+
       // Rasterlines / cycle count
       if (profiling)
       {
