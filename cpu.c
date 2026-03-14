@@ -333,7 +333,7 @@ int runcpu(void)
     x = a;
     pc++;
     break;
-    
+
     case 0x1a:
     case 0x3a:
     case 0x5a:
@@ -341,7 +341,7 @@ int runcpu(void)
     case 0xda:
     case 0xfa:
     break;
-    
+
     case 0x80:
     case 0x82:
     case 0x89:
@@ -358,7 +358,7 @@ int runcpu(void)
     case 0xf4:
     pc++;
     break;
-    
+
     case 0x0c:
     case 0x1c:
     case 0x3c:
@@ -453,6 +453,16 @@ int runcpu(void)
     case 0x31:
     cpucycles += EVALPAGECROSSING_INDIRECTY();
     AND(MEM(INDIRECTY()));
+    pc++;
+    break;
+
+    case 0x0b:
+    case 0x2b:
+    AND(IMMEDIATE());
+    if (IMMEDIATE() & 0x80)
+      flags |= FC;
+    else
+      flags &= ~FC;
     pc++;
     break;
 
