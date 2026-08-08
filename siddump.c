@@ -72,6 +72,7 @@ int main(int argc, char **argv)
 {
   int subtune = 0;
   int seconds = 60;
+  int callsperframe = 1;
   int instr = 0;
   int frames = 0;
   int spacing[2];
@@ -133,6 +134,11 @@ int main(int argc, char **argv)
         lowres = 1;
         break;
 
+        case 'M':
+        sscanf(&argv[c][2], "%u", &callsperframe);
+        if (callsperframe < 1) callsperframe = 1;
+        break;
+
         case 'N':
         // Funktempo
         if (strchr(argv[c], ','))
@@ -187,6 +193,11 @@ int main(int argc, char **argv)
            "-d<value> Select calibration note (abs.notation 80-DF). Default middle-C (B0)\n"
            "-f<value> First frame to display, default 0\n"
            "-l        Low-resolution mode (only display 1 row per note)\n"
+           "-m<value> Playroutine calls per displayed frame, default 1. Give the\n"
+           "          tune's real call rate divided by 50: a tune driven by a CIA\n"
+           "          timer at 100Hz needs -m2. A displayed frame stays one PAL\n"
+           "          frame of real time, so a multispeed tune keeps the same time\n"
+           "          axis as a single-speed one.\n"
            "-n<value> Note spacing, default 0 (none). Use <value>,<value> to specify a funktempo\n"
            "-o<value> ""Oldnote-sticky"" factor. Default 1, increase for better vibrato display\n"
            "          (when increased, requires well calibrated frequencies)\n"
@@ -306,7 +317,11 @@ int main(int argc, char **argv)
   memset(&prevchn, 0, sizeof prevchn);
   memset(&prevchn2, 0, sizeof prevchn2);
   memset(&prevfilt, 0, sizeof prevfilt);
-  printf("Calling playroutine for %d frames, starting from frame %d\n", seconds*50, firstframe);
+  if (callsperframe > 1)
+    printf("Calling playroutine for %d frames (%d calls per frame), starting from frame %d\n",
+           seconds*50, callsperframe, firstframe);
+  else
+    printf("Calling playroutine for %d frames, starting from frame %d\n", seconds*50, firstframe);
   printf("Middle C frequency is $%04X\n\n", freqtbllo[48] | (freqtblhi[48] << 8));
   printf("| Frame | Freq Note/Abs WF ADSR Pul | Freq Note/Abs WF ADSR Pul | Freq Note/Abs WF ADSR Pul | FCut RC Typ V |");
   if (profiling)
@@ -325,21 +340,28 @@ int main(int argc, char **argv)
   while (frames < firstframe + seconds*50)
   {
     int c;
+    int call;
+    unsigned int framecycles = 0;
 
-    // Run the playroutine
-    instr = 0;
-    initcpu(playaddress, 0, 0, 0);
-    while (runcpu())
+    // Run the playroutine, once per call the tune makes in a frame
+    for (call = 0; call < callsperframe; call++)
     {
-      instr++;
-      if (instr > MAX_INSTR)
+      instr = 0;
+      initcpu(playaddress, 0, 0, 0);
+      while (runcpu())
       {
-        printf("Error: CPU executed abnormally high amount of instructions in playroutine, exiting\n");
-        return 1;
+        instr++;
+        if (instr > MAX_INSTR)
+        {
+          printf("Error: CPU executed abnormally high amount of instructions in playroutine, exiting\n");
+          return 1;
+        }
+        // Test for jump into Kernal interrupt handler exit
+        if ((mem[0x01] & 0x07) != 0x5 && (pc == 0xea31 || pc == 0xea81))
+          break;
       }
-      // Test for jump into Kernal interrupt handler exit
-      if ((mem[0x01] & 0x07) != 0x5 && (pc == 0xea31 || pc == 0xea81))
-        break;
+      // initcpu zeroes cpucycles, so the profiling column accumulates here
+      framecycles += cpucycles;
     }
 
     // Get SID parameters from each channel and the filter
@@ -469,7 +491,7 @@ int main(int argc, char **argv)
       // Rasterlines / cycle count
       if (profiling)
       {
-        int cycles = cpucycles;
+        int cycles = framecycles;
         int rasterlines = (cycles + 62) / 63;
         int badlines = ((cycles + 503) / 504);
         int rasterlinesbad = (badlines * 40 + cycles + 62) / 63;
