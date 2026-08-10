@@ -1,5 +1,5 @@
-SIDDump V1.10
-by Lasse Oorni (loorni@gmail.com) and Stein Pedersen
+SIDDump V1.11
+by Lasse Oorni (loorni@gmail.com), Stein Pedersen, Michael Troelsen
 
 Version history:
 
@@ -15,6 +15,7 @@ V1.07   - Support rudimentary line counting for SID detection routines
 V1.08   - CPU bugfixes
 V1.09   - Add alternating (funktempo) note spacing
 V1.10   - More CPU bugfixes, 8580 detection hack added
+V1.11   - Calls per frame (-m) option added, improved makefile portability
 
 Copyright (C) 2005-2026 by the authors. All rights reserved.
 
